@@ -1,0 +1,20 @@
+{
+  "manifest_version": 2,
+  "name": "T3 Chat Usage Display Injector",
+  "version": "1.0.0",
+  "description": "Injects a usage display script on t3.chat after page load.",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "t3chat-usage-display@local",
+      "strict_min_version": "91.0"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://t3.chat/", "https://t3.chat/chat/*"],
+      "js": ["script.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "permissions": ["https://t3.chat/", "https://t3.chat/chat/*"]
+}
