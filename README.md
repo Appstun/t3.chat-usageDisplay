@@ -3,8 +3,5 @@ Pre-build Firefox extension in zip file.
 
 If something breaks in the UI or the extension does not do anything anymore, fix it yourself ... or so.
 
-> [!Important]
-> This currently overrides your profile selection
-
 ### Install
 I'm lazy. [Look at my other extension for installation](https://github.com/Appstun/zen-blanking-extension?tab=readme-ov-file#installation).

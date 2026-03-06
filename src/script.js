@@ -1,5 +1,6 @@
-const eleXPath = "/html/body/div/div[2]/div[2]/div/div[4]/div/div/div/div";
+const eleXPath = "/html/body/div/main/div[3]/div[2]/div/div[2]/div/form/div[3]";
 const fetchUsageDelay_sec = 15;
+let lastUsageEle = null;
 
 async function getUsageData() {
   const reqData = { 0: { json: { sessionId: null }, meta: { values: { sessionId: ["undefined"] } } } };
@@ -11,9 +12,22 @@ async function getUsageData() {
   return json[0].result.data.json.usagePeriodPercentage;
 }
 
-async function setUsageInElement(ele) {
-  ele.style.fontSize = "11px";
-  ele.textContent = `Credits left: ${(100 - (await getUsageData())).toFixed(2)}%`;
+async function setUsageInElement(parentEle) {
+  if (!lastUsageEle) {
+    lastUsageEle = document.createElement("div");
+    parentEle.insertBefore(lastUsageEle, parentEle.lastChild);
+  }
+
+  const usage = await getUsageData();
+  lastUsageEle.className = "mt-2 inline-flex px-2 text-xs font-medium text-muted-foreground";
+
+  if (typeof usage !== "number") {
+    lastUsageEle.textContent = "";
+    return;
+  }
+
+  const creditsLeft = (100 - usage).toFixed(2);
+  lastUsageEle.textContent = `Credits left: ${creditsLeft}%`;
 }
 
 function getElementByXPath(xpath) {
