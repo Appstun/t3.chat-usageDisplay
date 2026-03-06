@@ -1,6 +1,11 @@
 const eleXPath = "/html/body/div/main/div[3]/div[2]/div/div[2]/div/form/div[3]";
 const fetchUsageDelay_sec = 15;
-let lastUsageEle = null;
+let isUsageFetchRunning = false;
+const usageDisplaySelector = '[data-t3-usage-display="1"]';
+const uiTickMs = 250;
+const fetchIntervalMs = fetchUsageDelay_sec * 1000;
+let lastFetchTimestamp = 0;
+let lastUsageText = "";
 
 async function getUsageData() {
   const reqData = { 0: { json: { sessionId: null }, meta: { values: { sessionId: ["undefined"] } } } };
@@ -12,22 +17,36 @@ async function getUsageData() {
   return json[0].result.data.json.usagePeriodPercentage;
 }
 
+function ensureUsageElement(parentEle) {
+  if (!parentEle) return;
+
+  let usageEle = parentEle.querySelector(usageDisplaySelector);
+  if (usageEle) return usageEle;
+
+  usageEle = document.createElement("div");
+  usageEle.dataset.t3UsageDisplay = "1";
+  usageEle.className = "mt-2 inline-flex px-2 text-xs font-medium text-muted-foreground";
+  usageEle.textContent = lastUsageText;
+  parentEle.insertBefore(usageEle, parentEle.lastChild);
+
+  return usageEle;
+}
+
 async function setUsageInElement(parentEle) {
-  if (!lastUsageEle) {
-    lastUsageEle = document.createElement("div");
-    parentEle.insertBefore(lastUsageEle, parentEle.lastChild);
-  }
+  const usageEle = ensureUsageElement(parentEle);
+  if (!parentEle || !usageEle) return;
 
   const usage = await getUsageData();
-  lastUsageEle.className = "mt-2 inline-flex px-2 text-xs font-medium text-muted-foreground";
 
   if (typeof usage !== "number") {
-    lastUsageEle.textContent = "";
+    lastUsageText = "";
+    usageEle.textContent = "";
     return;
   }
 
   const creditsLeft = (100 - usage).toFixed(2);
-  lastUsageEle.textContent = `Credits left: ${creditsLeft}%`;
+  lastUsageText = `Credits left: ${creditsLeft}%`;
+  usageEle.textContent = lastUsageText;
 }
 
 function getElementByXPath(xpath) {
@@ -36,20 +55,40 @@ function getElementByXPath(xpath) {
   return null;
 }
 
+function getUsageParentElement() {
+  const xpathElement = getElementByXPath(eleXPath);
+  if (xpathElement) return xpathElement;
+
+  // Fallback: find the input form with model picker and then pick the menu/action bar row.
+  const modelTrigger = document.querySelector("button.chat-input-model-trigger");
+  const form = modelTrigger ? modelTrigger.closest("form") : null;
+  if (!form) return null;
+
+  const childDivs = Array.from(form.children).filter((child) => child.tagName === "DIV");
+  const actionBar = childDivs.find((child) => child.className.includes("flex-row-reverse") && child.className.includes("justify-between"));
+
+  return actionBar || null;
+}
+
+console.log("T3Chat usage display script loaded. Activating...");
+
 setTimeout(() => {
-  console.log("T3Chat usage display script loaded. Activating in 3 seconds...");
-  setTimeout(() => {
-    let element = getElementByXPath(eleXPath);
-    if (element) setUsageInElement(element);
-    let counter = 0;
-    setInterval(() => {
-      let elementN = getElementByXPath(eleXPath);
-      if ((elementN && counter >= fetchUsageDelay_sec) || (elementN && !element)) {
-        setUsageInElement(elementN);
-        counter = 0;
-      }
-      element = elementN;
-      counter++;
-    }, 1000);
-  }, 3000);
-}, 1000);
+  setInterval(async () => {
+    const parentEle = getUsageParentElement();
+    if (!parentEle) return;
+
+    // Re-attach fast; cached text is restored immediately after DOM re-renders.
+    ensureUsageElement(parentEle);
+
+    const now = Date.now();
+    if (isUsageFetchRunning || now - lastFetchTimestamp < fetchIntervalMs) return;
+
+    isUsageFetchRunning = true;
+    try {
+      await setUsageInElement(parentEle);
+      lastFetchTimestamp = Date.now();
+    } finally {
+      isUsageFetchRunning = false;
+    }
+  }, uiTickMs);
+});
