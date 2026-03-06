@@ -4,8 +4,11 @@ let isUsageFetchRunning = false;
 const usageDisplaySelector = '[data-t3-usage-display="1"]';
 const uiTickMs = 250;
 const fetchIntervalMs = fetchUsageDelay_sec * 1000;
+const parentLookupIntervalMs = 2000;
 let lastFetchTimestamp = 0;
 let lastUsageText = "";
+let cachedUsageParent = null;
+let nextParentLookupAt = 0;
 
 async function getUsageData() {
   const reqData = { 0: { json: { sessionId: null }, meta: { values: { sessionId: ["undefined"] } } } };
@@ -25,7 +28,7 @@ function ensureUsageElement(parentEle) {
 
   usageEle = document.createElement("div");
   usageEle.dataset.t3UsageDisplay = "1";
-  usageEle.className = "mt-2 inline-flex px-2 text-xs font-medium text-muted-foreground";
+  usageEle.className = "mt-2 inline-flex px-2 text-sm font-medium text-muted-foreground";
   usageEle.textContent = lastUsageText;
   parentEle.insertBefore(usageEle, parentEle.lastChild);
 
@@ -56,8 +59,18 @@ function getElementByXPath(xpath) {
 }
 
 function getUsageParentElement() {
+  if (cachedUsageParent && cachedUsageParent.isConnected) return cachedUsageParent;
+
+  const now = Date.now();
+  if (now < nextParentLookupAt) return null;
+
+  nextParentLookupAt = now + parentLookupIntervalMs;
+
   const xpathElement = getElementByXPath(eleXPath);
-  if (xpathElement) return xpathElement;
+  if (xpathElement) {
+    cachedUsageParent = xpathElement;
+    return xpathElement;
+  }
 
   // Fallback: find the input form with model picker and then pick the menu/action bar row.
   const modelTrigger = document.querySelector("button.chat-input-model-trigger");
@@ -67,7 +80,8 @@ function getUsageParentElement() {
   const childDivs = Array.from(form.children).filter((child) => child.tagName === "DIV");
   const actionBar = childDivs.find((child) => child.className.includes("flex-row-reverse") && child.className.includes("justify-between"));
 
-  return actionBar || null;
+  cachedUsageParent = actionBar || null;
+  return cachedUsageParent;
 }
 
 console.log("T3Chat usage display script loaded. Activating...");
