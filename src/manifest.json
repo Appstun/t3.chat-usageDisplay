@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "T3 Chat Usage Display Injector",
-  "version": "1.0.0",
+  "version": "1.3.0",
   "description": "Injects a usage display script on t3.chat after page load.",
   "browser_specific_settings": {
     "gecko": {
